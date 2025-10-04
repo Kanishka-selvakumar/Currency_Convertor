@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Currency Converter</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'primary': '#10b981', /* Updated primary color for a fresh look */
+                        'primary-dark': '#059669',
+                        'accent': '#1e3a8a', /* Dark blue for contrast */
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom message box styling */
+        .message-box {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            transform: translateY(-100%);
+            transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+            opacity: 0;
+            z-index: 1000;
+        }
+        .message-box.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        /* Set the dynamic background image */
+        .background-image {
+            background-image: url('img cc.png'); /* Using the uploaded image file name */
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed; /* Ensures the background stays put while scrolling */
+        }
+    </style>
+</head>
+<body class="background-image flex items-center justify-center min-h-screen p-4 font-sans">
+
+    <!-- Updated app container with transparency for better contrast against the dark background -->
+    <div id="app" class="w-full max-w-lg bg-gray-900/90 backdrop-blur-sm rounded-xl shadow-2xl p-6 md:p-8 border-t-4 border-primary text-white">
+        <h1 class="text-3xl font-extrabold text-white mb-6 text-center">
+            Real-Time Currency Converter
+        </h1>
+        <p class="text-sm text-gray-400 text-center mb-6">Rates fetched from a public external API.</p>
+
+        <!-- Input for amount -->
+        <div class="mb-5">
+            <label for="amount" class="block text-sm font-medium text-gray-300 mb-2">Amount</label>
+            <input type="number" id="amount" placeholder="Enter amount to convert" value="100"
+                   class="w-full px-4 py-3 border border-gray-600 bg-gray-800 text-white rounded-lg focus:ring-primary focus:border-primary transition duration-150 ease-in-out shadow-sm"
+                   oninput="clearResult()">
+        </div>
+
+        <!-- Currency selection dropdowns -->
+        <div class="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 sm:space-x-4 mb-8">
+            <div class="w-full sm:w-5/12">
+                <label for="fromCurrency" class="block text-sm font-medium text-gray-300 mb-2">From</label>
+                <select id="fromCurrency" class="w-full px-4 py-3 border border-gray-600 bg-gray-800 text-white rounded-lg focus:ring-primary focus:border-primary appearance-none shadow-sm transition duration-150 ease-in-out"
+                        onchange="clearResult()">
+                    <!-- Currency options -->
+                    <option value="USD">🇺🇸 USD - US Dollar</option>
+                    <option value="EUR">🇪🇺 EUR - Euro</option>
+                    <option value="INR" selected>🇮🇳 INR - Indian Rupee</option>
+                    <option value="GBP">🇬🇧 GBP - British Pound</option>
+                    <option value="JPY">🇯🇵 JPY - Japanese Yen</option>
+                </select>
+            </div>
+
+            <!-- Swap button (Icon: Repeat arrow from Lucide) -->
+            <button onclick="swapCurrencies()" class="p-3 mt-8 sm:mt-5 text-primary hover:text-white transition duration-150 ease-in-out rounded-full hover:bg-gray-700" title="Swap Currencies">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-repeat-2"><path d="m2 9 3-3 3 3"/><path d="M13 18H7a2 2 0 0 1-2-2V6"/><path d="m22 15-3 3-3-3"/><path d="M11 6h6a2 2 0 0 1 2 2v10"/></svg>
+            </button>
+
+            <div class="w-full sm:w-5/12">
+                <label for="toCurrency" class="block text-sm font-medium text-gray-300 mb-2">To</label>
+                <select id="toCurrency" class="w-full px-4 py-3 border border-gray-600 bg-gray-800 text-white rounded-lg focus:ring-primary focus:border-primary appearance-none shadow-sm transition duration-150 ease-in-out"
+                        onchange="clearResult()">
+                    <!-- Currency options -->
+                    <option value="USD" selected>🇺🇸 USD - US Dollar</option>
+                    <option value="EUR">🇪🇺 EUR - Euro</option>
+                    <option value="INR">🇮🇳 INR - Indian Rupee</option>
+                    <option value="GBP">🇬🇧 GBP - British Pound</option>
+                    <option value="JPY">🇯🇵 JPY - Japanese Yen</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Convert Button -->
+        <button id="convertButton" onclick="convertCurrency()" class="w-full bg-primary text-gray-900 font-bold py-3 rounded-lg shadow-lg hover:bg-primary-dark transition duration-200 ease-in-out transform hover:scale-[1.01] flex items-center justify-center">
+            <span id="buttonText">Get Real-Time Exchange Rate</span>
+            <span id="loadingSpinner" class="hidden flex items-center">
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-900 inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Fetching Rate...
+            </span>
+        </button>
+
+        <!-- Result Display -->
+        <div id="result" class="mt-8 p-4 bg-primary/20 border-l-4 border-primary rounded-lg text-center hidden">
+            <p id="resultText" class="text-xl font-bold text-white"></p>
+        </div>
+    </div>
+
+    <!-- Custom Message Box for alerts -->
+    <div id="messageBox" class="message-box bg-red-500 text-white p-3 rounded-lg shadow-lg">
+        Error message.
+    </div>
+
+    <script>
+        // --- API CONFIGURATION ---
+        const API_URL = 'https://api.exchangerate-api.com/v4/latest/';
+        const MAX_RETRIES = 3;
+        let currentDelay = 1000;
+
+        // Static rates used as a fallback if the real-time API fails completely
+        const FALLBACK_RATES = {
+            USD: 1.0,
+            INR: 83.5,
+            EUR: 0.93,
+            GBP: 0.81,
+            JPY: 150.0,
+        };
+
+        // --- UI UTILITIES ---
+
+        function showMessage(message, isError = true, duration = 4000) {
+            const msgBox = document.getElementById('messageBox');
+            msgBox.innerText = message;
+            msgBox.className = isError 
+                ? 'message-box show bg-red-600 text-white p-3 rounded-lg shadow-xl' 
+                : 'message-box show bg-green-500 text-white p-3 rounded-lg shadow-xl';
+            
+            setTimeout(() => {
+                msgBox.classList.remove('show');
+            }, duration);
+        }
+
+        function clearResult() {
+            document.getElementById('result').classList.add('hidden');
+        }
+
+        function swapCurrencies() {
+            const fromSelect = document.getElementById('fromCurrency');
+            const toSelect = document.getElementById('toCurrency');
+            
+            const tempValue = fromSelect.value;
+            fromSelect.value = toSelect.value;
+            toSelect.value = tempValue;
+            
+            clearResult();
+            convertCurrency();
+        }
+
+        function setLoading(isLoading) {
+            const button = document.getElementById('convertButton');
+            const buttonText = document.getElementById('buttonText');
+            const spinner = document.getElementById('loadingSpinner');
+
+            button.disabled = isLoading;
+            if (isLoading) {
+                buttonText.classList.add('hidden');
+                spinner.classList.remove('hidden');
+                document.getElementById('result').classList.add('hidden');
+            } else {
+                buttonText.classList.remove('hidden');
+                spinner.classList.add('hidden');
+            }
+        }
+
+        // --- API CALL WITH EXPONENTIAL BACKOFF ---
+
+        async function fetchRatesWithBackoff(fromCurrency, attempt = 0) {
+            if (attempt >= MAX_RETRIES) {
+                throw new Error('Failed to fetch rates after multiple retries. Max retries reached.');
+            }
+
+            try {
+                const url = `${API_URL}${fromCurrency}`;
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    if (response.status === 429 || response.status >= 500) {
+                        throw new Error(`Retryable API error: Status ${response.status}`);
+                    }
+                    throw new Error(`Non-retryable API error: Status ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (!data.rates) {
+                    throw new Error('Invalid data structure received from API (missing "rates").');
+                }
+
+                currentDelay = 1000;
+                return data.rates;
+
+            } catch (error) {
+                if (attempt < MAX_RETRIES - 1) {
+                    console.warn(`Attempt ${attempt + 1} failed: ${error.message}. Retrying in ${currentDelay}ms...`);
+                    currentDelay *= 2;
+                    await new Promise(resolve => setTimeout(resolve, currentDelay));
+                    return fetchRatesWithBackoff(fromCurrency, attempt + 1);
+                }
+                throw error;
+            }
+        }
+
+        // --- CORE CONVERSION LOGIC ---
+
+        async function convertCurrency() {
+            setLoading(true);
+            const amountInput = document.getElementById('amount');
+            const resultDiv = document.getElementById('result');
+            const resultText = document.getElementById('resultText');
+
+            // 1. Get user input
+            const amount = parseFloat(amountInput.value);
+            const from = document.getElementById('fromCurrency').value;
+            const to = document.getElementById('toCurrency').value;
+
+            // 2. Validate input
+            if (isNaN(amount) || amount <= 0) {
+                showMessage('Please enter a valid amount (greater than 0).');
+                setLoading(false);
+                amountInput.focus();
+                return;
+            }
+            
+            if (from === to) {
+                resultText.innerText = `${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} ${from} is equal to ${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} ${to}`;
+                resultDiv.classList.remove('hidden');
+                setLoading(false);
+                return;
+            }
+
+            // 3. Fetch real-time rates
+            try {
+                const rates = await fetchRatesWithBackoff(from);
+                const rateTo = rates[to];
+
+                if (!rateTo) {
+                    throw new Error(`Rate for ${to} not found in the API response.`);
+                }
+
+                // 4. Calculation Logic: Amount * Rate
+                const convertedAmount = amount * rateTo;
+
+                // 5. Display result
+                resultText.innerHTML = 
+                    `<span class="text-2xl">${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} ${from}</span> <br/> is approximately <br/> <span class="text-3xl font-extrabold text-primary">${convertedAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${to}</span>`;
+
+                resultDiv.classList.remove('hidden');
+
+            } catch (error) {
+                console.error('Real-Time Conversion Failed:', error);
+                
+                // --- Fallback to static rates ---
+                const rateFrom = FALLBACK_RATES[from];
+                const rateTo = FALLBACK_RATES[to];
+                
+                if (rateFrom && rateTo) {
+                    const amountInBase = amount / rateFrom;
+                    const convertedAmount = amountInBase * rateTo;
+                    
+                    resultText.innerHTML = 
+                        `<span class="text-xl text-red-400 font-bold">[STATIC FALLBACK]</span><br/>${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} ${from} <br/> is approximately <br/> <span class="text-3xl font-extrabold text-white">${convertedAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${to}</span>`;
+                    resultDiv.classList.remove('hidden');
+                    showMessage("Error fetching real-time rates. Using static fallback.", true, 6000);
+
+                } else {
+                    resultText.innerText = "Error: Conversion data unavailable.";
+                    resultDiv.classList.remove('hidden');
+                    showMessage("Error: Cannot convert. Rate data unavailable.", true, 6000);
+                }
+                
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // Run conversion on page load with default values
+        window.onload = () => {
+            document.getElementById('fromCurrency').value = 'INR';
+            document.getElementById('toCurrency').value = 'USD';
+            convertCurrency();
+        };
+
+    </script>
+</body>
+</html>
